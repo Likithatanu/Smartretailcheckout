@@ -178,6 +178,8 @@ export interface VisionPrediction {
   confidence: number;
   probabilities: Record<string, number>;
   is_confident: boolean;
+  is_ood?: boolean;
+  rejection_reason?: string | null;
   model_version: string;
   confidence_threshold: number;
   timestamp: string;

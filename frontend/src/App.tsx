@@ -270,12 +270,19 @@ export const App: React.FC = () => {
       setProfile(prof);
 
       if (prof?.store_id && prof?.is_active) {
-        const [storeProds, regSession] = await Promise.all([
-          getStoreProducts(prof.store_id),
-          getActiveRegisterSession(prof.store_id, prof.id),
-        ]);
-        setProducts(storeProds);
-        setActiveSession(regSession);
+        try {
+          const storeProds = await getStoreProducts(prof.store_id);
+          setProducts(storeProds);
+        } catch (prodErr) {
+          console.error('Failed to load store products:', prodErr);
+        }
+
+        try {
+          const regSession = await getActiveRegisterSession(prof.store_id, prof.id);
+          setActiveSession(regSession);
+        } catch (sessErr) {
+          console.error('Failed to load active register session:', sessErr);
+        }
       }
     } catch (err) {
       console.error('Failed to load store profile data:', err);
@@ -745,7 +752,8 @@ export const App: React.FC = () => {
   const filteredQuickProducts = products.filter(p => 
     !quickCatalogSearch || 
     p.name.toLowerCase().includes(quickCatalogSearch.toLowerCase()) ||
-    (p.barcode && p.barcode.includes(quickCatalogSearch))
+    (p.barcode && p.barcode.includes(quickCatalogSearch)) ||
+    (p.model_class && p.model_class.toLowerCase().includes(quickCatalogSearch.toLowerCase()))
   );
 
   return (
@@ -758,9 +766,10 @@ export const App: React.FC = () => {
             onAddToCart={handleAddToCart}
             onBarcodeNotFound={handleBarcodeNotFound}
           />
+          {/* Background auto-capture disabled per user request (manual AI Camera Recognition used instead) */}
           <AutomaticScaleVisionListener
             storeId={profile.store_id}
-            enabled={!isVisionModalOpen}
+            enabled={false}
             onAddToCart={handleAddToCart}
             onStatusChange={setAutoVisionStatus}
           />
@@ -1108,7 +1117,7 @@ export const App: React.FC = () => {
             setSelectedStockProduct(prod || null);
             setIsStockModalOpen(true);
           }}
-          onRefreshProducts={() => loadRetailerData()}
+          onRefreshProducts={loadRetailerData}
         />
       )}
 
@@ -1130,8 +1139,9 @@ export const App: React.FC = () => {
                 updated[idx] = savedProd;
                 return updated;
               }
-              return [...prev, savedProd];
+              return [savedProd, ...prev];
             });
+            loadRetailerData();
           }}
         />
       )}

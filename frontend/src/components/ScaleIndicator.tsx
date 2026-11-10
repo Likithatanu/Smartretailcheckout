@@ -21,7 +21,7 @@ export const ScaleIndicator: React.FC<ScaleIndicatorProps> = ({
     weight_grams: null,
     unit: 'g',
     status: 'disconnected',
-    port: 'COM3',
+    port: 'Auto-detecting',
   });
   const [isStable, setIsStable] = useState(false);
   const recentWeightsRef = useRef<number[]>([]);
@@ -155,7 +155,7 @@ export const ScaleIndicator: React.FC<ScaleIndicatorProps> = ({
             ? '⚠️ Sensor hardware error: check DOUT pin 3 / SCK pin 2'
             : scaleStatus.connected 
               ? (isStable ? '✓ Weight locked • Auto-adding to cart' : 'Place loose produce on scale to recognize automatically') 
-              : 'Check Arduino USB connection on COM3'}
+              : scaleStatus.detail || (scaleStatus.port && scaleStatus.port !== 'Auto-detecting' ? `Checking connection on ${scaleStatus.port}...` : 'Auto-detecting Arduino USB scale connection...')}
       </div>
     </div>
   );

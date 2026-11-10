@@ -181,7 +181,7 @@ export const AutomaticScaleVisionListener: React.FC<AutomaticScaleVisionListener
             state: listenerStateRef.current,
             type: 'error',
             message: 'Scale sensor error: HX711 not ready.',
-            detail: 'Check load cell connection on COM3.',
+            detail: `Check load cell wiring (pin 3 DOUT, pin 2 SCK) on ${scaleReading.port || 'USB scale'}.`,
             timestamp: Date.now(),
           });
           return;

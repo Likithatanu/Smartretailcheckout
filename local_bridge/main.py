@@ -331,7 +331,12 @@ async def predict_vision_post(
                 detail=f"Unexpected camera error: {exc}",
             )
 
-    # Apply ROI crop bounds if enabled
+    # Apply ROI crop bounds if enabled (unless caller explicitly pre-cropped to target zone)
+    use_roi = (
+        payload.apply_roi
+        if (payload is not None and payload.apply_roi is not None)
+        else config.ROI_ENABLED
+    )
     roi_bounds = (
         (
             config.DEFAULT_ROI_X_MIN,
@@ -339,7 +344,7 @@ async def predict_vision_post(
             config.DEFAULT_ROI_X_MAX,
             config.DEFAULT_ROI_Y_MAX,
         )
-        if config.ROI_ENABLED
+        if use_roi
         else None
     )
 

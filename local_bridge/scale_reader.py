@@ -67,7 +67,7 @@ class ScaleReader:
 
     def __init__(
         self,
-        port: str = "COM3",
+        port: str = "AUTO",
         baudrate: int = 9600,
         timeout: float = 1.0,
         retry_interval: float = 2.0,
@@ -125,6 +125,42 @@ class ScaleReader:
             finally:
                 self._serial_handle = None
 
+    def _find_candidate_ports(self) -> list[str]:
+        """Discover available serial ports, prioritizing known Arduino / CH340 / USB-Serial devices."""
+        if serial is None:
+            return [self.port] if self.port != "AUTO" else []
+
+        try:
+            from serial.tools import list_ports
+            detected = list(list_ports.comports())
+        except Exception as exc:
+            logger.debug("Failed to list serial ports: %s", exc)
+            return [self.port] if self.port != "AUTO" else []
+
+        if not detected:
+            return [self.port] if self.port != "AUTO" else []
+
+        high_priority: list[str] = []
+        low_priority: list[str] = []
+        for p in detected:
+            desc = (p.description or "").lower()
+            mfg = (p.manufacturer or "").lower()
+            hwid = (p.hwid or "").lower()
+            if any(k in desc or k in mfg or k in hwid for k in ["ch340", "arduino", "usb serial", "usb-serial", "wch", "ftdi", "cp210"]):
+                high_priority.append(p.device)
+            else:
+                low_priority.append(p.device)
+
+        configured = [self.port] if (self.port and self.port != "AUTO") else []
+        ordered = high_priority + [p for p in configured if p not in high_priority and p in [d.device for d in detected]] + low_priority
+        seen = set()
+        unique: list[str] = []
+        for c in ordered:
+            if c not in seen:
+                seen.add(c)
+                unique.append(c)
+        return unique or ([self.port] if self.port != "AUTO" else [])
+
     def _run_loop(self) -> None:
         """Main loop executed by worker thread."""
         while not self._stop_event.is_set():
@@ -135,24 +171,48 @@ class ScaleReader:
                 time.sleep(self.retry_interval)
                 continue
 
-            # Attempt connection if not already open
+            # Attempt auto-detection and connection if not already open
             if self._serial_handle is None:
-                try:
-                    logger.debug("Attempting to open serial port %s...", self.port)
-                    ser = serial.Serial(
-                        port=self.port,
-                        baudrate=self.baudrate,
-                        timeout=self.timeout,
-                    )
-                    # Flush any stale garbage in buffer
-                    ser.reset_input_buffer()
-                    self._serial_handle = ser
-                    logger.info("Serial port %s opened successfully.", self.port)
-                except (SerialException, PermissionError, FileNotFoundError, OSError) as exc:
+                candidate_ports = self._find_candidate_ports()
+                if candidate_ports:
+                    self.port = candidate_ports[0]
+
+                opened_ser = None
+                conn_error = None
+
+                for target_port in candidate_ports:
+                    try:
+                        logger.debug("Attempting to connect to serial port %s...", target_port)
+                        ser = serial.Serial(
+                            port=target_port,
+                            baudrate=self.baudrate,
+                            timeout=self.timeout,
+                        )
+                        # Flush any stale garbage in buffer
+                        ser.reset_input_buffer()
+                        opened_ser = ser
+                        self.port = target_port
+                        logger.info("Serial port %s opened successfully.", target_port)
+                        break
+                    except (SerialException, PermissionError, FileNotFoundError, OSError) as exc:
+                        msg = str(exc)
+                        if isinstance(exc, PermissionError) or "access is denied" in msg.lower():
+                            conn_error = (
+                                f"Port {target_port} is busy or locked by another application (e.g. Arduino IDE Serial Monitor). "
+                                "Please close the Serial Monitor in Arduino IDE."
+                            )
+                        else:
+                            conn_error = f"Cannot open {target_port}: {exc}"
+                        logger.debug("Serial connection attempt failed on %s: %s", target_port, exc)
+
+                if opened_ser is not None:
+                    self._serial_handle = opened_ser
+                    with self._lock:
+                        self._error_detail = None
+                else:
                     with self._lock:
                         self._connected = False
-                        self._error_detail = f"Cannot open {self.port}: {exc}"
-                    logger.debug("Serial connection failed: %s", exc)
+                        self._error_detail = conn_error or "Scanning USB ports for Arduino HX711 scale..."
                     # Sleep before retrying to prevent tight CPU spin
                     self._stop_event.wait(self.retry_interval)
                     continue

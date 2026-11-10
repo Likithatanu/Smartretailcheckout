@@ -25,7 +25,7 @@ def test_health_endpoint_structure(client):
     assert data["model_name"] == "convnext_tiny"
     assert set(data["classes"]) == {"chana_dal", "masur_dal", "rice"}
     assert isinstance(data["serial_connected"], bool)
-    assert data["serial_port"] == "COM3"
+    assert isinstance(data["serial_port"], str) and len(data["serial_port"]) > 0
     assert isinstance(data["camera_available"], bool)
     assert data["status"] in {"ok", "degraded"}
 

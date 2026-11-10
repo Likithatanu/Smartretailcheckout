@@ -217,3 +217,29 @@ def test_vision_prediction_metadata_and_version_override(client):
         data_v1 = res_v1.json()
         assert data_v1["model_version"] == "v1"
 
+
+def test_vision_rejects_non_grain_frames_as_ood(client):
+    """Verify non-grain / person / flat / geometric frames are flagged is_ood=True and not confident."""
+    # 1. Flat uniform surface
+    flat_frame = np.full((480, 640, 3), 128, dtype=np.uint8)
+    with patch("local_bridge.main.camera_manager.capture_frame", return_value=flat_frame):
+        res_flat = client.get("/vision/predict")
+    assert res_flat.status_code == 200
+    d_flat = res_flat.json()
+    assert d_flat["is_ood"] is True
+    assert d_flat["is_confident"] is False
+    assert isinstance(d_flat["rejection_reason"], str) and len(d_flat["rejection_reason"]) > 10
+
+    # 2. Structured two-tone object / skin-tone oval (non-grain portrait-like pattern)
+    portrait_frame = np.full((480, 640, 3), 195, dtype=np.uint8)
+    portrait_frame[220:430, 230:410] = [205, 152, 118]  # skin-toned center block
+    portrait_frame[260:280, 265:295] = [30, 25, 22]     # dark feature
+    portrait_frame[260:280, 345:375] = [30, 25, 22]     # dark feature
+    portrait_frame[410:480, 180:460] = [45, 80, 145]    # shirt block
+    with patch("local_bridge.main.camera_manager.capture_frame", return_value=portrait_frame):
+        res_obj = client.get("/vision/predict")
+    assert res_obj.status_code == 200
+    d_obj = res_obj.json()
+    assert d_obj["is_ood"] is True
+    assert d_obj["is_confident"] is False
+    assert isinstance(d_obj["rejection_reason"], str) and len(d_obj["rejection_reason"]) > 10

@@ -22,7 +22,7 @@ interface ProductCatalogModalProps {
   onOpenAddModal: () => void;
   onOpenEditModal: (product: Product) => void;
   onOpenStockModal: (product?: Product) => void;
-  onRefreshProducts: () => void;
+  onRefreshProducts: () => void | Promise<void>;
 }
 
 export const ProductCatalogModal: React.FC<ProductCatalogModalProps> = ({
@@ -37,6 +37,21 @@ export const ProductCatalogModal: React.FC<ProductCatalogModalProps> = ({
   const [activeTab, setActiveTab] = useState<'products' | 'movements'>('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'loose' | 'packaged' | 'low_stock'>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await onRefreshProducts();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Auto-refresh real store products from Supabase on mount
+  useEffect(() => {
+    handleRefresh();
+  }, [onRefreshProducts]);
 
   // Inventory movements state
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
@@ -119,11 +134,12 @@ export const ProductCatalogModal: React.FC<ProductCatalogModalProps> = ({
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={onRefreshProducts}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
               title="Refresh Products"
-              className="p-2 rounded-xl bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold text-xs transition-colors shadow-xs"
+              className="p-2 rounded-xl bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-semibold text-xs transition-colors shadow-xs disabled:opacity-50"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`} />
             </button>
 
             <button

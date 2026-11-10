@@ -72,8 +72,13 @@ function blobToBase64(blob: Blob): Promise<string> {
  * Request real-time vision classification from bridge.
  * Supports direct host camera capture or uploading a captured frame blob from browser.
  */
-export async function predictVision(imageBlob?: Blob): Promise<VisionPrediction> {
-  let url = `${BRIDGE_BASE_URL}/vision/predict`;
+export async function predictVision(
+  imageBlob?: Blob,
+  version?: string,
+  applyRoi?: boolean
+): Promise<VisionPrediction> {
+  const queryParam = version ? `?version=${version}` : '';
+  const url = `${BRIDGE_BASE_URL}/vision/predict${queryParam}`;
   let options: RequestInit;
 
   if (imageBlob) {
@@ -84,7 +89,11 @@ export async function predictVision(imageBlob?: Blob): Promise<VisionPrediction>
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ image_base64: base64Data }),
+      body: JSON.stringify({
+        image_base64: base64Data,
+        version: version || undefined,
+        apply_roi: applyRoi,
+      }),
     };
   } else {
     // Host webcam capture via GET /vision/predict

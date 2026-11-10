@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 
 # Serial Scale Configuration
-DEFAULT_SERIAL_PORT: str = os.getenv("SCALE_SERIAL_PORT", "COM3")
+DEFAULT_SERIAL_PORT: str = os.getenv("SCALE_SERIAL_PORT", "AUTO")
 DEFAULT_BAUD_RATE: int = int(os.getenv("SCALE_BAUD_RATE", "9600"))
 SERIAL_TIMEOUT_SECONDS: float = float(os.getenv("SCALE_SERIAL_TIMEOUT", "1.0"))
 SERIAL_RETRY_INTERVAL_SECONDS: float = float(os.getenv("SCALE_RETRY_INTERVAL", "2.0"))
@@ -29,9 +29,21 @@ _DEFAULT_V1_SRC = Path(r"D:\smart-retailmodeltraining\checkpoints_new\convnext_t
 MODEL_V1_PATH: Path = Path(os.getenv("MODEL_V1_PATH", str(_DEFAULT_V1_APP if _DEFAULT_V1_APP.exists() else _DEFAULT_V1_SRC)))
 
 # Model v2 (fine-tuned - default inference candidate)
+# Prefer v3 domain-balanced webcam checkpoint when present, preserving original v2 on disk
+_DEFAULT_V3_APP = MODELS_DIR / "convnext_tiny_3class_v3_webcam.pth"
+_DEFAULT_V3_SRC = Path(r"D:\smart-retailmodeltraining\checkpoints_new\convnext_tiny_3class_v3_webcam.pth")
 _DEFAULT_V2_APP = MODELS_DIR / "convnext_tiny_3class_v2_rice_finetune.pth"
 _DEFAULT_V2_SRC = Path(r"D:\smart-retailmodeltraining\checkpoints_new\convnext_tiny_3class_v2_rice_finetune.pth")
-MODEL_V2_PATH: Path = Path(os.getenv("MODEL_V2_PATH", str(_DEFAULT_V2_APP if _DEFAULT_V2_APP.exists() else _DEFAULT_V2_SRC)))
+
+
+def _resolve_finetuned_checkpoint() -> Path:
+    for candidate in (_DEFAULT_V3_APP, _DEFAULT_V3_SRC, _DEFAULT_V2_APP, _DEFAULT_V2_SRC):
+        if candidate.exists():
+            return candidate
+    return _DEFAULT_V2_APP
+
+
+MODEL_V2_PATH: Path = Path(os.getenv("MODEL_V2_PATH", str(_resolve_finetuned_checkpoint())))
 
 # Active model selection (v2 by default, switchable to v1)
 DEFAULT_MODEL_VERSION: str = os.getenv("ACTIVE_MODEL_VERSION", "v2").lower()

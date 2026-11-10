@@ -86,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                 : 'bg-amber-50 text-amber-700 border border-amber-200'
             }`}
-            title={isScaleConnected ? `HX711 Load Cell connected on ${scaleStatus?.port || 'COM3'}` : `Scale: ${scaleStatus?.status || 'disconnected'}`}
+            title={isScaleConnected ? `HX711 Load Cell connected on ${scaleStatus?.port || 'USB'}` : `Scale: ${scaleStatus?.status || 'disconnected'}`}
           >
             <Scale className="w-3.5 h-3.5" />
             <span>HX711 Scale</span>

@@ -63,12 +63,24 @@ class VisionPredictionResponse(BaseModel):
     model_version: str = Field("v2", description="Model checkpoint version ('v1' or 'v2')")
     is_confident: bool = Field(True, description="Whether prediction meets or exceeds confidence threshold")
     confidence_threshold: float = Field(0.75, description="Calibrated confidence threshold applied")
+    is_ood: bool = Field(
+        False,
+        description="True when image is rejected as non-grain (face, person, hand, packet, or background)",
+    )
+    rejection_reason: Optional[str] = Field(
+        None,
+        description="Human-readable explanation when image is rejected as non-grain or low confidence",
+    )
 
 
 class VisionPredictRequest(BaseModel):
     """Payload to classify grain product from a base64-encoded webcam frame."""
     image_base64: Optional[str] = Field(None, description="Base64 encoded JPEG or PNG image frame data")
     version: Optional[str] = Field(None, description="Optional model version override ('v1' or 'v2')")
+    apply_roi: Optional[bool] = Field(
+        None,
+        description="Optional override for server-side ROI crop (False when caller already cropped to target zone)",
+    )
 
 
 class ModelSwitchRequest(BaseModel):
